@@ -1,0 +1,15 @@
+[project]
+name = "tic-tac-toe-bitboard"
+version = "0.0.0"
+description = ""
+authors = [
+    {name = "Sy Tran Dung", email = "sytrancsvn@gmail.com"},
+]
+dependencies = []
+requires-python = ">=3.12"
+readme = "README.md"
+license = {text = "MIT"}
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"

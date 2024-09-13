@@ -1,6 +1,13 @@
-from typing import List
+from math import inf
+from typing import TYPE_CHECKING, List, Literal, Tuple
+from curses import wrapper, echo, cbreak
+
+if TYPE_CHECKING:
+    from curses import _CursesWindow
 
 BitBoard = List[int]
+Player = Literal[-1, 1]
+Move = Tuple[float, int, int]
 
 
 class InvalidMove(Exception):
@@ -84,13 +91,22 @@ def flip_cell(board, row, col):
     return new_board
 
 
+COMP: Player = 1
+HUMN: Player = -1
+
+
 class TicTacToeBoard:
-    def __init__(self, size: int, first='X', pieces_to_win=3) -> None:
+    def __init__(self, size: int, player='X', pieces_to_win=3) -> None:
         self.x = new_board(size)
         self.o = new_board(size)
         self.mt = new_board(size)
         self.size = size
-        self.players = [self.x, self.o] if first == 'X' else [self.o, self.x]
+        self.human, self.comp = (
+            self.x, self.o) if player == 'X' else (self.o, self.x)
+        self.players = {
+            COMP: self.comp,
+            HUMN: self.human,
+        }
         self.winning_boards = self.make_winning_boards(pieces_to_win)
 
     def valid_move(self, row: int, col: int) -> bool:
@@ -195,12 +211,113 @@ class TicTacToeBoard:
                 return True
         return False
 
-    def heuristic(self, player):
+    def heuristic(self, player: Player):
         """
         Find posible wins for player
 
         Posible wins are winning board that have not been interupted by opponent.
         """
+        if self.wins(player):
+            # set max amount of posible win states
+            return player * len(self.winning_boards)
+
+        posible_board = bitboard_or(self.players[player], self.mt)
+        return player * sum([1 if bitboard_and(posible_board, win) == win else 0 for win in self.winning_boards])
+
+    def search_alpha_beta(self, player):
+        if player is COMP:
+            return self.max_value(player)
+        else:
+            return self.min_value(player)
 
     def game_over(self):
-        return True
+        return all(r == 0 for r in self.mt) or self.wins(COMP) or self.wins(HUMN)
+
+    def evaluate(self):
+        if self.wins(COMP):
+            return len(self.winning_boards)**2
+        elif self.wins(HUMN):
+            return -len(self.winning_boards)**2
+        return 0
+
+    def empty_cells(self):
+        return [(r, c) for r in range(self.size) for c in range(self.size) if is_cell_set(self.mt, r, c)]
+
+    def min_value(self, player: Player, alpha=-inf, beta=+inf, depth=1):
+        if self.game_over():
+            val = self.evaluate()
+            return val, -1, -1
+        # shuffle(empties)
+        score, ax, ay = +inf, -1, -1
+        for cell in self.empty_cells():
+            x, y = cell[0], cell[1]
+            self.move(x, y, player)
+            m, _, _ = self.max_value(-player, alpha, beta, depth + 1)
+            if m < score:
+                score = m
+                ax, ay = x, y
+            self.unmove(x, y, player)
+            if score <= alpha:
+                return score, ax, ay
+            beta = min(beta, score)
+
+        return score, ax, ay
+
+    def max_value(self, player: Player, alpha=-inf, beta=+inf, depth=1):
+        if self.game_over():
+            val = self.evaluate()
+            return val, -1, -1
+        score, ax, ay = -inf, -1, -1
+        for cell in self.empty_cells():
+            x, y = cell
+            self.move(x, y, player)
+            m, _, _ = self.min_value(-player, alpha, beta, depth + 1)
+            if m > score:
+                score = m
+                ax, ay = x, y
+            self.unmove(x, y, player)
+            if score >= beta:
+                return score, ax, ay
+            alpha = max(alpha, score)
+        return score, ax, ay
+
+    def run(self, stdscr: "_CursesWindow"):
+        stop = False
+        cbreak(True)
+        while not stop:
+            stop = self.render(stdscr)
+
+    def render(self, stdscr: "_CursesWindow"):
+        stdscr.clear()
+        for r in range(self.size):
+            for c in range(self.size):
+                cell = stdscr.subwin(3, 5, 3*r, 5*c)
+                cell.border()
+                cell.move(1, 2)
+                if is_cell_set(self.x, r, c):
+                    cell.addch('X')
+                elif is_cell_set(self.o, r, c):
+                    cell.addch('O')
+                else:
+                    cell.addch('.')
+        stdscr.move(3*self.size + 1, 0)
+        stdscr.addstr("Select cell (x, y): ")
+        stdscr.refresh()
+        echo()
+        inp = stdscr.getstr()
+        if inp == "":
+            raise Exception()
+        try:
+            x, y = inp.split()
+            x, y = int(x) - 1, int(y) - 1
+            if 0 <= x <= self.size - 1 and 0 <= y <= self.size - 1:
+                return x, y
+            else:
+                raise ValueError(f"{x}, {y}")
+        except Exception:
+            stdscr.addstr("Invalid cell")
+        echo(False)
+
+
+if __name__ == "__main__":
+    wrapper(TicTacToeBoard(5, 'X', 3).run)

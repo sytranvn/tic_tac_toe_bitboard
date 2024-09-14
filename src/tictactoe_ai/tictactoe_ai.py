@@ -1,5 +1,7 @@
 from curses import (
     A_COLOR,
+    BUTTON1_CLICKED,
+    BUTTON1_RELEASED,
     COLOR_BLUE,
     KEY_MOUSE,
     REPORT_MOUSE_POSITION,
@@ -486,9 +488,13 @@ class TicTacToeBoard:
                            clear=lambda: self.render(stdscr))
                 x, y = int(x) - 1, int(y) - 1
             else:
-                _, y, x, _, _ = getmouse()
-                y, x = ((y - CELL_PADDING) // CELL_WIDTH,
-                        (x - CELL_PADDING) // CELL_HEIGHT)
+                _, y, x, _, btn = getmouse()
+                # logging.info(f"btn {btn}, BUTTON1_CLICKED={BUTTON1_CLICKED}")
+                if btn & BUTTON1_RELEASED or btn & BUTTON1_CLICKED:
+                    y, x = ((y - CELL_PADDING) // CELL_WIDTH,
+                            (x - CELL_PADDING) // CELL_HEIGHT)
+                else:
+                    continue
             if self.valid_move(x, y):
                 mousemask(old_mask)
                 self.move(x, y, HUMN)
@@ -496,7 +502,10 @@ class TicTacToeBoard:
                 self.render(stdscr)
                 return x, y
             else:
-                stdscr.addstr("Invalid move\n")
+                try:
+                    stdscr.addstr("Invalid move\n")
+                except CursesError:
+                    self.render(stdscr)
                 stdscr.refresh()
 
     def render(self, stdscr: "_CursesWindow"):

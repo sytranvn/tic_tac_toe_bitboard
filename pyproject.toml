@@ -18,5 +18,8 @@ build-backend = "setuptools.build_meta"
 [project.scripts]
 tictactoe = "tictactoe_ai.__main__:main"
 
+[project.optional-dependencies]
+windows = ["windows-curses"]
+
 [tool.pdm]
 distribution = true

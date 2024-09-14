@@ -1,3 +1,5 @@
 __pycache__
 .pdm-*
-
+*.log
+dist/
+*.egg-info/

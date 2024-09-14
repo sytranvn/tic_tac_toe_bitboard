@@ -11,10 +11,10 @@ Tic-Tac-Toe Alpha Beta pruning
 If current position is wins or lose to a player. Return `inf/-inf` accordingly.
 
 Otherwise, try all possible moves from center of the board. If AI can win with
-a move, take that move immediately. If in 4 moves, we find a way for human to
-win, we have to block it. Therefore we have to check terminal state with 4
-level deep. If we ensure we will not lose in 4 moves, use `heuristic`
-function to consider next move.
+a move, take that move immediately. If in 5 moves, we find a way for human to
+win with a fork attack, we have to prevent it. Therefore we have to check
+terminal state with 5 level deep. If we ensure we will not lose in 5 moves, use
+`heuristic` function to consider next move to save time.
 
 ## Heuristic evaluation
 

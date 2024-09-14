@@ -339,6 +339,17 @@ class TicTacToeBoard:
         return [(r, c) for r in range(self.size)
                 for c in range(self.size) if is_cell_set(self.mt, r, c)]
 
+    def most_dangerous_move(self, player: Player):
+        player_board = self.players[player]
+        danger_cells = [
+            self.count_set_cells(bitboard_and(player_board, win))
+            for win in self.winning_boards
+            if bitboard_and(bitboard_or(self.mt, player_board), win) == win
+        ]
+        if danger_cells:
+            return max(danger_cells)
+        return 0
+
     def min_value(self, player: Player, alpha=-inf, beta=+inf, depth=1):
         logging.debug(f"min_value, depth={depth}")
         self.search_count += 1
@@ -358,7 +369,9 @@ class TicTacToeBoard:
                 m = self.evaluate()
                 self.unmove(x, y, player)
                 return m, x, y
-            if depth > 3 and len(empty_cells) > self.max_depth():
+            min_moves = self.min_safe_moves_not_to_lose(player)
+            if min_moves > 5 - depth and \
+                    len(empty_cells) > self.max_depth():
                 m = self.heuristic(-player)
             else:
                 m, _, _ = self.max_value(-player, alpha, beta, depth + 1)
@@ -371,6 +384,10 @@ class TicTacToeBoard:
             beta = min(beta, score)
 
         return score, ax, ay
+
+    def min_safe_moves_not_to_lose(self, player):
+        most_dangerous_move = self.most_dangerous_move(-player)
+        return (self.ptw - most_dangerous_move) * 2
 
     def max_value(self, player: Player, alpha=-inf, beta=+inf, depth=1):
         logging.debug(
@@ -392,7 +409,9 @@ class TicTacToeBoard:
                 m = self.evaluate()
                 self.unmove(x, y, player)
                 return m, x, y
-            elif depth > 3 and len(empty_cells) > self.max_depth():
+            min_moves = self.min_safe_moves_not_to_lose(player)
+            if min_moves > 5 - depth and \
+                    len(empty_cells) > self.max_depth():
                 m = self.heuristic(-player)
             else:
                 m, _, _ = self.min_value(-player, alpha, beta, depth + 1)

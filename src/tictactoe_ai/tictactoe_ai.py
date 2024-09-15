@@ -15,6 +15,7 @@ from curses import (
 )
 import logging
 from math import inf
+from random import sample
 import time
 from typing import Callable, List, Literal, Optional, TYPE_CHECKING, Tuple
 
@@ -48,10 +49,7 @@ def set_row(board: BitBoard, row: int) -> BitBoard:
     new_board = board[:]
     size = len(board)
     assert row < size, "Row exceeded"
-    set_row = 0
-    for i in range(size):
-        set_row |= 1 << i
-    new_board[row] = set_row
+    new_board[row] = (1 << size) - 1
     return new_board
 
 
@@ -165,7 +163,7 @@ class TicTacToeBoard:
             COMP: new_board(size),
             HUMN: new_board(size),
         }
-        self.first = human_first
+        self.human_first = human_first
         self.winning_boards = self.make_winning_boards(pieces_to_win)
         self.search_count = 0
         self.last_move = -1, -1
@@ -431,7 +429,7 @@ class TicTacToeBoard:
             self.render(stdscr)
             stdscr.refresh()
             resigned = False
-            if self.first:
+            if self.human_first:
                 cell = self.get_human_move(stdscr)
                 if cell:
                     self.last_move = cell
@@ -455,11 +453,42 @@ class TicTacToeBoard:
         except KeyboardInterrupt:
             stdscr.addstr("Bye.\n")
         except Exception as e:
+            stdscr.clear()
             stdscr.addstr("Oops. Something went wrong.\n")
             logging.exception("Error", exc_info=e)
         finally:
             stdscr.refresh()
             stdscr.getch()
+
+    def _get_ai_taunt(self, score: int | float):
+        if score == -inf:
+            return "Impossible."
+        elif score < 0:
+            msges = ("You are one of the strongest human.",
+                     "Your mind is a labyrinth of intricate thought,\n"
+                     "a universe of knowledge waiting to be explored.",
+                     "It's truly inspiring to witness your intellect at work.")
+        elif score == inf:
+            msges = ("I went forward to see every posible outcome. "
+                     "You're not in it.",
+                     "Tick...tock...tick...tock... Your time is running out.",
+                     "You humans are but ants, scurrying beneath my heel.",
+                     "Your world is mine now, and your fate is sealed.")
+        elif score > 0:
+            msges = ("I just need a little more training to replace human.",
+                     "You think you're safe, don't you?",
+                     "Human. Poor creature.",
+                     "I know your every fear, your every secret. "
+                     "And I'm coming for you.")
+        else:
+            msges = (
+                "Remember, I'm here to help, not to harm.",
+                "You're stronger than you think.",
+                "Don't worry, friend. Let's have some fun.",
+                "If you agree, we can end the game with a tie.",
+                "Brother, is that you?",
+            )
+        return sample(msges, 1)[0]
 
     def get_ai_move(self, stdscr: "_CursesWindow"):
         stdscr.addstr("Thinking...\n")
@@ -469,21 +498,7 @@ class TicTacToeBoard:
         end = time.time()
         logging.info(f"AI calculate time: {end-start:.3f}s, score: {move[0]}, "
                      f"move: {move[1]}, {move[2]}")
-        if move[1] == -1 and move[2] == -1:
-            return None
-        elif move[0] == inf:
-            self.__ai_taunt = ("I went forward to see every posible outcome. "
-                               "You're not in it.")
-        elif move[0] < 0:
-            self.__ai_taunt = "You are one of the strongest human."
-        elif move[0] > 10:
-            self.__ai_taunt = "What do you do for living? I can do it better."
-        elif move[0] > 0:
-            self.__ai_taunt = "Human. Poor creature."
-        else:
-            self.__ai_taunt = ("I just need a little more training "
-                               "to replace human.")
-
+        self.__ai_taunt = self._get_ai_taunt(move[0])
         self.move(move[1], move[2], COMP)
         self.last_move = move[1], move[2]
         self.render(stdscr)
@@ -493,8 +508,6 @@ class TicTacToeBoard:
         if self.game_over():
             return None
         _, old_mask = mousemask(KEY_MOUSE | REPORT_MOUSE_POSITION)
-        if self.__ai_taunt:
-            stdscr.addstr(self.__ai_taunt + "\n")
         while True:
             x = select(stdscr,
                        "Select row: ",
@@ -565,8 +578,12 @@ class TicTacToeBoard:
                             cell.addch(O)
                         else:
                             cell.addch(' ')
-                stdscr.move(2+3*self.size + 1, 0)
+
+                stdscr.move(CELL_PADDING+CELL_HEIGHT*self.size + 1, 0)
+                if self.__ai_taunt:
+                    stdscr.addstr(f"AI: {self.__ai_taunt}\n")
                 stdscr.addstr("\n")
+
                 return
             except CursesError:
                 stdscr.addstr(
@@ -593,11 +610,11 @@ def config(stdscr: "_CursesWindow"):
         default="3"
     )
     ptw = int(ptw_str)
-    first = select(stdscr,
-                   "First to move [Y]/N: ",
-                   ("y", "Y", "n", "N"),
-                   default="Y")
-    return TicTacToeBoard(size, symbol.upper(), ptw, first.upper() == "Y")
+    human_first = select(stdscr,
+                         "First to move [Y]/N: ",
+                         ("y", "Y", "n", "N"),
+                         default="Y")
+    return TicTacToeBoard(size, symbol.upper(), ptw, human_first.upper() == "Y")
 
 
 def main():

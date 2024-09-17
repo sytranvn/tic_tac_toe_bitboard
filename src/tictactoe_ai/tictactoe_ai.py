@@ -152,7 +152,8 @@ class TicTacToeBoard:
             self.col = col
 
     def __init__(self, size: int,
-                 symbol='X', pieces_to_win=3, human_first=True) -> None:
+                 symbol='X', pieces_to_win=3, human_first=True,
+                 level=1) -> None:
         self.mt = new_board(size)
         for r in range(size):
             self.mt = set_row(self.mt, r)
@@ -167,6 +168,7 @@ class TicTacToeBoard:
         self.winning_boards = self.make_winning_boards(pieces_to_win)
         self.search_count = 0
         self.last_move = -1, -1
+        self.level = level + 3
         self.__ai_taunt = ""
 
     @property
@@ -319,7 +321,7 @@ class TicTacToeBoard:
         return move
 
     def max_depth(self):
-        return 9
+        return 6 + self.level
 
     def game_over(self):
         return (all(r == 0 for r in self.mt) or
@@ -349,7 +351,6 @@ class TicTacToeBoard:
         return 0
 
     def min_value(self, player: Player, alpha=-inf, beta=+inf, depth=1):
-        logging.debug(f"min_value, depth={depth}")
         self.search_count += 1
         if self.game_over():
             val = self.evaluate()
@@ -363,7 +364,6 @@ class TicTacToeBoard:
 
         for cell in empty_cells:
             r, c = cell
-            logging.debug(f"check win cell={r}, {c}")
             self.move(r, c, player)
             if self.wins(player):
                 m = self.evaluate()
@@ -375,7 +375,7 @@ class TicTacToeBoard:
             x, y = cell[0], cell[1]
             self.move(x, y, player)
             min_moves = self.min_safe_moves_not_to_lose(player)
-            if min_moves > 5 - depth and \
+            if min_moves > self.level - depth and \
                     len(empty_cells) > self.max_depth():
                 m = self.heuristic(-player)
             else:
@@ -395,8 +395,6 @@ class TicTacToeBoard:
         return (self.ptw - most_dangerous_move) * 2
 
     def max_value(self, player: Player, alpha=-inf, beta=+inf, depth=1):
-        logging.debug(
-            f"max_value, depth={depth}, game_over={self.game_over()}")
         self.search_count += 1
         if self.game_over():
             val = self.evaluate()
@@ -408,7 +406,6 @@ class TicTacToeBoard:
             x[0] - self.size // 2)**2 + (x[0] - self.size//2)**2)
         for cell in empty_cells:
             r, c = cell
-            logging.debug(f"check win cell={r}, {c}")
             self.move(r, c, player)
             if self.wins(player):
                 m = self.evaluate()
@@ -418,10 +415,9 @@ class TicTacToeBoard:
 
         for cell in empty_cells:
             r, c = cell
-            logging.debug(f"check heuristic cell={r}, {c}")
             self.move(r, c, player)
             min_moves = self.min_safe_moves_not_to_lose(player)
-            if min_moves > 5 - depth and \
+            if min_moves > self.level - depth and \
                     len(empty_cells) > self.max_depth():
                 m = self.heuristic(-player)
             else:
@@ -512,9 +508,12 @@ class TicTacToeBoard:
         logging.info(f"AI calculate time: {end-start:.3f}s, score: {move[0]}, "
                      f"move: {move[1]}, {move[2]}")
         self.__ai_taunt = self._get_ai_taunt(move[0])
-        self.move(move[1], move[2], COMP)
+        if move[0] != -inf:
+            self.move(move[1], move[2], COMP)
         self.last_move = move[1], move[2]
         self.render(stdscr)
+        if move[0] == -inf:
+            return None
         return move[1], move[2]
 
     def get_human_move(self, stdscr: "_CursesWindow"):
@@ -622,12 +621,19 @@ def config(stdscr: "_CursesWindow"):
         list(map(str, range(3, min(size+1, 6)))),
         default="3"
     )
+    level_str = select(
+        stdscr,
+        "Select level [1]-3: ",
+        list(map(str, range(1, 4))),
+        default="1"
+    )
+    level = int(level_str)
     ptw = int(ptw_str)
     human_first = select(stdscr,
                          "First to move [Y]/N: ",
                          ("y", "Y", "n", "N"),
                          default="Y")
-    return TicTacToeBoard(size, symbol.upper(), ptw, human_first.upper() == "Y")
+    return TicTacToeBoard(size, symbol.upper(), ptw, human_first.upper() == "Y", level)
 
 
 def main():

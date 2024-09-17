@@ -1,6 +1,8 @@
 # tic-tac-toe
 
-Tic-Tac-Toe Alpha Beta pruning
+<video width="320" height="240" controls>
+  <source src="assets/output.mov" type="video/mp4">
+</video>
 
 ## Alpha-Beta pruning 
 

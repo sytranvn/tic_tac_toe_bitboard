@@ -194,7 +194,7 @@ class TicTacToeBoard:
             self.mt = flip_cell(self.mt, row, col)
             self.players[player] = flip_cell(self.players[player], row, col)
         else:
-            raise ValueError("Cannot undo a move haven't been played.")
+            raise ValueError(f"Cannot undo {row},{col},  a move haven't been played.")
 
     def make_winning_boards(self, pieces_to_win):
         boards = []
@@ -360,13 +360,20 @@ class TicTacToeBoard:
         # check the center cells first
         empty_cells.sort(key=lambda x: (
             x[0] - self.size // 2)**2 + (x[0] - self.size//2)**2)
+
+        for cell in empty_cells:
+            r, c = cell
+            logging.debug(f"check win cell={r}, {c}")
+            self.move(r, c, player)
+            if self.wins(player):
+                m = self.evaluate()
+                self.unmove(r, c, player)
+                return m, r, c
+            self.unmove(r, c, player)
+
         for cell in self.empty_cells():
             x, y = cell[0], cell[1]
             self.move(x, y, player)
-            if self.wins(player):
-                m = self.evaluate()
-                self.unmove(x, y, player)
-                return m, x, y
             min_moves = self.min_safe_moves_not_to_lose(player)
             if min_moves > 5 - depth and \
                     len(empty_cells) > self.max_depth():
@@ -400,13 +407,19 @@ class TicTacToeBoard:
         empty_cells.sort(key=lambda x: (
             x[0] - self.size // 2)**2 + (x[0] - self.size//2)**2)
         for cell in empty_cells:
-            x, y = cell
-            logging.debug(f"cell={x}, {y}")
-            self.move(x, y, player)
+            r, c = cell
+            logging.debug(f"check win cell={r}, {c}")
+            self.move(r, c, player)
             if self.wins(player):
                 m = self.evaluate()
-                self.unmove(x, y, player)
-                return m, x, y
+                self.unmove(r, c, player)
+                return m, r, c
+            self.unmove(r, c, player)
+
+        for cell in empty_cells:
+            r, c = cell
+            logging.debug(f"check heuristic cell={r}, {c}")
+            self.move(r, c, player)
             min_moves = self.min_safe_moves_not_to_lose(player)
             if min_moves > 5 - depth and \
                     len(empty_cells) > self.max_depth():
@@ -415,8 +428,8 @@ class TicTacToeBoard:
                 m, _, _ = self.min_value(-player, alpha, beta, depth + 1)
             if m > score:
                 score = m
-                ax, ay = x, y
-            self.unmove(x, y, player)
+                ax, ay = r, c
+            self.unmove(r, c, player)
             if score >= beta:
                 return score, ax, ay
             alpha = max(alpha, score)

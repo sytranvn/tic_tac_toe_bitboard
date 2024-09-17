@@ -1,7 +1,9 @@
 # tic-tac-toe
 
-<video width="320" height="240" controls>
-  <source src="assets/output.mov" type="video/mp4">
+
+
+<video src="https://github.com/user-attachments/assets/2db1d74c-1761-4233-bda1-eeefe1d24cd6">
+[demo](assets/output.mov)
 </video>
 
 ## Alpha-Beta pruning 

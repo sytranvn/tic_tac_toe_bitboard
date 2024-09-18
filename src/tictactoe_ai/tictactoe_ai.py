@@ -196,7 +196,8 @@ class TicTacToeBoard:
             self.mt = flip_cell(self.mt, row, col)
             self.players[player] = flip_cell(self.players[player], row, col)
         else:
-            raise ValueError(f"Cannot undo {row},{col},  a move haven't been played.")
+            raise ValueError(
+                f"Cannot undo {row},{col},  a move haven't been played.")
 
     def make_winning_boards(self, pieces_to_win):
         boards = []
@@ -339,7 +340,7 @@ class TicTacToeBoard:
         return [(r, c) for r in range(self.size)
                 for c in range(self.size) if is_cell_set(self.mt, r, c)]
 
-    def most_dangerous_move(self, player: Player):
+    def min_safe_moves_not_to_lose(self, player):
         player_board = self.players[player]
         danger_cells = [
             self.count_set_cells(bitboard_and(player_board, win))
@@ -347,8 +348,26 @@ class TicTacToeBoard:
             if bitboard_and(bitboard_or(self.mt, player_board), win) == win
         ]
         if danger_cells:
-            return max(danger_cells)
-        return 0
+            most_dangerous_move = max(danger_cells)
+        else:
+            most_dangerous_move = 0
+        return (self.ptw - most_dangerous_move) * 2
+
+    def forks(self, player):
+        """
+        Check if player is forking
+        """
+        player_board = self.players[player]
+        potential_win_boards = [
+            bitboard_and(player_board, win)
+            for win in self.winning_boards
+            if bitboard_and(bitboard_or(self.mt, player_board), win) == win
+        ]
+        winboards = [board for board in potential_win_boards if self.count_set_cells(board) == self.ptw - 1]
+        if len(winboards) > 1:
+            return True
+        else:
+            return False
 
     def min_value(self, player: Player, alpha=-inf, beta=+inf, depth=1):
         self.search_count += 1
@@ -369,6 +388,9 @@ class TicTacToeBoard:
                 m = self.evaluate()
                 self.unmove(r, c, player)
                 return m, r, c
+            elif self.forks(player):
+                self.unmove(r, c, player)
+                return player * inf, r, c
             self.unmove(r, c, player)
 
         for cell in self.empty_cells():
@@ -390,10 +412,6 @@ class TicTacToeBoard:
 
         return score, ax, ay
 
-    def min_safe_moves_not_to_lose(self, player):
-        most_dangerous_move = self.most_dangerous_move(-player)
-        return (self.ptw - most_dangerous_move) * 2
-
     def max_value(self, player: Player, alpha=-inf, beta=+inf, depth=1):
         self.search_count += 1
         if self.game_over():
@@ -411,6 +429,9 @@ class TicTacToeBoard:
                 m = self.evaluate()
                 self.unmove(r, c, player)
                 return m, r, c
+            elif self.forks(player):
+                self.unmove(r, c, player)
+                return player * inf, r, c
             self.unmove(r, c, player)
 
         for cell in empty_cells:
